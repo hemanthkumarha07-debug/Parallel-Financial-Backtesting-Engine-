@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PFSBE — Parallel Financial Strategy Backtesting Engine</title>
+    <style>
+        :root {
+            --bg-dark: #0B132B;
+            --card-bg: #14203C;
+            --teal: #2DD4BF;
+            --cyan: #38BDF8;
+            --amber: #F59E0B;
+            --text-white: #F8FAFC;
+            --text-muted: #94A3B8;
+            --text-body: #E2E8F0;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-body);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .deck-container {
+            width: 92vw;
+            max-width: 1300px;
+            height: 84vh;
+            max-height: 750px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 40px 50px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .slide.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .category {
+            color: var(--teal);
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .title {
+            color: var(--text-white);
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 25px;
+            line-height: 1.2;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            flex: 1;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+        .grid-6 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: repeat(3, 1fr);
+            gap: 16px;
+            flex: 1;
+        }
+        .card {
+            background: rgba(11, 19, 43, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+        }
+        .card.featured {
+            border-color: var(--teal);
+        }
+        .card-title {
+            color: var(--cyan);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 10px;
+            color: var(--text-body);
+        }
+        li::before {
+            content: "•";
+            position: absolute;
+            left: 4px;
+            color: var(--teal);
+            font-size: 18px;
+            line-height: 1;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: #1e293b;
+            color: var(--teal);
+            font-weight: 700;
+        }
+        td {
+            color: var(--text-white);
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 92vw;
+            max-width: 1300px;
+            margin-top: 16px;
+            padding: 0 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-white);
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+        .notes-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 2px solid var(--amber);
+            padding: 18px 24px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #fde68a;
+            max-height: 180px;
+            overflow-y: auto;
+            display: none;
+            backdrop-filter: blur(8px);
+        }
+        .notes-drawer.open {
+            display: block;
+        }
+        .highlight {
+            color: var(--teal);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="deck-container">
+        
+        <!-- SLIDE 1 -->
+        <div class="slide active" id="slide-1" data-notes="Good morning/afternoon respected examiners and panel members. Today I am presenting the Parallel Financial Strategy Backtesting Engine (PFSBE). This project demonstrates the practical application of high-performance parallel computing to quantitative finance, addressing the computational bottlenecks of algorithmic strategy evaluation.">
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding-left: 20px; border-left: 4px solid var(--teal);">
+                <div class="category">Academic & Technical Capstone Defense</div>
+                <h1 style="color: var(--text-white); font-size: 46px; font-weight: 800; line-height: 1.15; margin: 12px 0 18px 0;">
+                    Parallel Financial Strategy<br>Backtesting Engine (PFSBE)
+                </h1>
+                <h2 style="color: var(--cyan); font-size: 22px; font-weight: 600; margin-bottom: 30px;">
+                    Accelerating Algorithmic Strategy Evaluation via Multi-Process Task Parallelism
+                </h2>
+                <div style="color: var(--text-muted); font-size: 14px; line-height: 1.8;">
+                    <strong>Domain:</strong> High-Performance Parallel Computing & Quantitative Systems<br>
+                    <strong>Architecture:</strong> Python 3.11 • ProcessPoolExecutor • Streamlit • Plotly • Pytest (72 Tests Passed)
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2 -->
+        <div class="slide" id="slide-2" data-notes="In algorithmic trading, parameter optimization requires evaluating large combinations of indicator settings. Running this sequentially across historical candles scales linearly with data length and grid size, causing research bottlenecks. PFSBE addresses this by deploying a custom multi-process parallel engine.">
+            <div class="category">Introduction & Motivation</div>
+            <div class="title">The Computational Imperative in Quantitative Finance</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">The Quantitative Research Bottleneck</div>
+                    <ul>
+                        <li>Algorithmic strategy optimization evaluates Cartesian parameter grids (thousands of permutations).</li>
+                        <li>Multi-year high-resolution OHLC data scales time complexity to O(M × N).</li>
+                        <li>Sequential single-core execution takes hours to days for deep parameter sweeps.</li>
+                        <li>Research agility demands rapid turnaround to validate or discard alpha models.</li>
+                        <li><strong>Need:</strong> Native parallelization directly integrated into financial workflows.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">The PFSBE Solution</div>
+                    <ul>
+                        <li>Bypasses CPython's Global Interpreter Lock (GIL) via multi-process task parallelism.</li>
+                        <li>Implements 3 production strategies: MA Crossover, RSI Reversion, Donchian Breakout.</li>
+                        <li>Guarantees Zero Look-Ahead Bias with realistic slippage and commission friction.</li>
+                        <li>Measures real wall-clock Speedup (Sp) and Parallel Efficiency (Ep) reproducibly.</li>
+                        <li>Provides an interactive dark-navy Streamlit dashboard with full audit exports.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3 -->
+        <div class="slide" id="slide-3" data-notes="A common misconception is that adding threads speeds up Python code. Because backtesting is CPU-bound, the GIL prevents multi-core utilization. ProcessPoolExecutor spawns distinct OS processes with private heaps, bypassing the GIL completely. We also solved the Windows 'spawn' compatibility requirement.">
+            <div class="category">Theoretical Context</div>
+            <div class="title">The Python Concurrency Bottleneck: Why Threads Fail</div>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-title">CPython GIL Constraint</div>
+                    <ul>
+                        <li>Global Interpreter Lock permits only one OS thread to run bytecode at once.</li>
+                        <li>Threading accelerates I/O (network/disk), but fails for CPU-bound tasks.</li>
+                        <li>Financial backtesting is strictly compute-bound (math, loops, ledgers).</li>
+                        <li>Threads degrade performance via GIL lock contention.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Multi-Process Architecture</div>
+                    <ul>
+                        <li>Uses concurrent.futures.ProcessPoolExecutor.</li>
+                        <li>Each worker process has its own Python interpreter and heap.</li>
+                        <li>Completely bypasses the GIL across all physical CPU cores.</li>
+                        <li>Achieves true hardware-level multi-core scaling.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">Cross-Platform Spawning</div>
+                    <ul>
+                        <li>POSIX uses fork(); Windows strictly uses spawn.</li>
+                        <li>Engine engineered with top-level module-scoped worker functions.</li>
+                        <li>Lightweight serialization prevents pickling errors and IPC deadlocks.</li>
+                        <li>100% verified compatibility on Windows & Linux.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4 -->
+        <div class="slide" id="slide-4" data-notes="Here is the 5-tier architecture. Notice the clean decoupling between the user interface, analytics, parallel task coordination, backtesting engine, and data ingestion. This modularity enables independent testing and seamless scaling.">
+            <div class="category">System Engineering</div>
+            <div class="title">Decoupled 5-Tier System Architecture</div>
+            <div style="display: flex; flex-direction: column; gap: 10px; flex: 1;">
+                <div class="card" style="padding: 12px 20px;">
+                    <div style="color: var(--text-white); font-weight: 700;">Tier 1: Presentation (Streamlit Web Dashboard)</div>
+                    <div style="color: var(--text-muted); font-size: 13px;">6-page interactive quantitative workbench with Plotly candlestick charts, parameter sliders, and audit exports.</div>
+                </div>
+                <div class="card" style="padding: 12px 20px;">
+                    <div style="color: var(--text-white); font-weight: 700;">Tier 2: Analytics & Reporting Layer</div>
+                    <div style="color: var(--text-muted); font-size: 13px;">Multi-criteria strategy ranking (Sharpe, Return, Drawdown), CSV exporters, and Markdown summary generator.</div>
+                </div>
+                <div class="card featured" style="padding: 12px 20px;">
+                    <div style="color: var(--teal); font-weight: 700;">Tier 3: Parallel Task Coordinator (ProcessPoolExecutor)</div>
+                    <div style="color: var(--text-muted); font-size: 13px;">Cartesian grid compilation, parameter validation, task serialization, and dynamic multi-worker dispatching.</div>
+                </div>
+                <div class="card" style="padding: 12px 20px;">
+                    <div style="color: var(--text-white); font-weight: 700;">Tier 4: Backtesting & Execution Engine</div>
+                    <div style="color: var(--text-muted); font-size: 13px;">Zero look-ahead bar-by-bar simulator, cash/share accounting ledger, cost deductions, and mark-to-market equity curves.</div>
+                </div>
+                <div class="card" style="padding: 12px 20px;">
+                    <div style="color: var(--text-white); font-weight: 700;">Tier 5: Data Ingestion & 7-Point Quality Validator</div>
+                    <div style="color: var(--text-muted); font-size: 13px;">CSV parser, alias normalizer, 7-point validation suite, and Geometric Brownian Motion synthetic data generator.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5 -->
+        <div class="slide" id="slide-5" data-notes="Financial data in the wild is notoriously dirty. Before running a single backtest, our ingestion pipeline runs seven mathematical checks. It catches inverted candles, duplicate rows, negative prices, and anomalous gaps, ensuring untrusted user CSV uploads cannot corrupt simulation results.">
+            <div class="category">Data Integrity</div>
+            <div class="title">Automated 7-Point Data Quality Validation Suite</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Ingestion & Preprocessing Pipeline</div>
+                    <ul>
+                        <li><strong>Column Alias Normalization:</strong> Resolves 15+ column variations (Date, Timestamp, Vol, Adj Close).</li>
+                        <li><strong>Chronological Sorting:</strong> Enforces monotonic datetime sequencing.</li>
+                        <li><strong>Deduplication:</strong> Detects and prunes duplicate timestamp bars.</li>
+                        <li><strong>High-Precision Casting:</strong> Converts prices to float64 and volume to int64.</li>
+                        <li><strong>Deterministic GBM Generator:</strong> Built-in Geometric Brownian Motion engine for demonstration.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">The 7 Quality Integrity Checks</div>
+                    <ul>
+                        <li><strong>1. Schema Integrity:</strong> Verifies presence of Date, Open, High, Low, Close.</li>
+                        <li><strong>2. Datetime Parseability:</strong> Validates ISO / standard timestamps.</li>
+                        <li><strong>3. Duplicate Detection:</strong> Flags repeated timestamps.</li>
+                        <li><strong>4. Completeness:</strong> Rejects null / NaN price records.</li>
+                        <li><strong>5. Price Positivity:</strong> Enforces P > 0 across all price vectors.</li>
+                        <li><strong>6. OHLC Geometry:</strong> Asserts Low ≤ min(Open, Close) and High ≥ max(Open, Close).</li>
+                        <li><strong>7. Time-Series Discontinuities:</strong> Warns on gaps > 3x median delta.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6 -->
+        <div class="slide" id="slide-6" data-notes="Notice the crucial modeling detail on the right: in Donchian breakouts, we shift the rolling window by 1. Furthermore, across all strategies, a signal computed at candle t's close is executed on candle t+1's Open. Executing at candle t's close is physically impossible in live markets; our model guarantees zero look-ahead bias.">
+            <div class="category">Financial Modeling</div>
+            <div class="title">Trading Strategies & Zero Look-Ahead Execution</div>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-title">Strategy A: MA Crossover</div>
+                    <ul>
+                        <li>Fast SMA/EMA crosses Slow SMA/EMA.</li>
+                        <li><strong>Long Entry:</strong> Fast crosses above Slow.</li>
+                        <li><strong>Exit:</strong> Fast crosses below Slow.</li>
+                        <li><strong>Validation:</strong> Enforces Fast < Slow strictly.</li>
+                        <li><strong>Warmup:</strong> Slow period initial bars.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">Strategy B: RSI Reversion</div>
+                    <ul>
+                        <li>Wilder's exponential smoothing (α = 1/P).</li>
+                        <li><strong>Long Entry:</strong> RSI drops ≤ Oversold (e.g. 30).</li>
+                        <li><strong>Exit:</strong> RSI recovers ≥ Exit threshold (e.g. 50).</li>
+                        <li><strong>Validation:</strong> 0 < Oversold < Exit < 100.</li>
+                        <li>Captures cyclical mean-reversion.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Strategy C: Donchian Breakout</div>
+                    <ul>
+                        <li>Shifted Rolling Channels: shift(1) prevents look-ahead leakage.</li>
+                        <li><strong>Long Entry:</strong> Close breaks above prior high.</li>
+                        <li><strong>Exit:</strong> Close breaks below prior low.</li>
+                        <li><strong>Execution Guarantee:</strong> Signal on t close → Fill on t+1 open.</li>
+                        <li><strong>Friction:</strong> Realistic commission & slippage.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7 -->
+        <div class="slide" id="slide-7" data-notes="Here are the core parallel computing metrics. Speedup Sp represents how many times faster parallel execution is compared to sequential. Efficiency Ep measures hardware utilization. Amdahl's Law explains the theoretical ceiling: because parameter evaluations are independent, f approaches 1.0 as the grid grows, yielding high scalability.">
+            <div class="category">Parallel Computing</div>
+            <div class="title">Task Parallelism & Speedup Formulations</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Embarrassingly Parallel Formulation</div>
+                    <ul>
+                        <li><strong>Task Autonomy:</strong> Each backtest Task_i runs independently without barrier synchronization.</li>
+                        <li><strong>Shared Immutable Data:</strong> Clean OHLC data serialized into lightweight dictionaries.</li>
+                        <li><strong>Isolated Heap State:</strong> Workers maintain zero shared mutable state.</li>
+                        <li><strong>Fault Isolation:</strong> Invalid parameters return failure descriptors without crashing sibling workers.</li>
+                        <li><strong>Deterministic Output:</strong> Results sorted by task_id for reproducible benchmarking.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Mathematical Formulations</div>
+                    <ul>
+                        <li><strong>Speedup:</strong> S_p = T_sequential / T_parallel</li>
+                        <li><strong>Parallel Efficiency:</strong> E_p = S_p / p  (Percentage: E_p × 100%)</li>
+                        <li><strong>Ideal Linear Speedup:</strong> S_p = p, E_p = 1.0 (100%)</li>
+                        <li><strong>Amdahl's Law:</strong> S_max = 1 / ((1 - f) + f / p)</li>
+                        <li><strong>Parallel Fraction:</strong> f approaches 1.0 as parameter grid size increases.</li>
+                        <li><strong>Overhead Model:</strong> T_parallel = T_spawn + T_IPC + (T_compute / p)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8 -->
+        <div class="slide" id="slide-8" data-notes="This slide presents empirical data measured on our 20-core test environment. Notice the honest discussion of the crossover point: for small grids of 10 tasks, sequential is faster because spawning processes takes around 0.5s. However, as task size scales to 100+, parallel execution dominates, reaching 4.95x speedup with 8 workers.">
+            <div class="category">Empirical Performance</div>
+            <div class="title">Measured Benchmarks & Overhead Crossover Analysis</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Empirical Benchmark Data (100 Tasks)</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mode</th>
+                                <th>Workers</th>
+                                <th>Wall Time</th>
+                                <th>Speedup</th>
+                                <th>Efficiency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Sequential</td>
+                                <td>1</td>
+                                <td>3.42 s</td>
+                                <td>1.00x</td>
+                                <td>100.0%</td>
+                            </tr>
+                            <tr>
+                                <td>Parallel</td>
+                                <td>2</td>
+                                <td>1.90 s</td>
+                                <td>1.80x</td>
+                                <td>90.2%</td>
+                            </tr>
+                            <tr>
+                                <td style="color: var(--teal); font-weight: 700;">Parallel</td>
+                                <td style="color: var(--teal); font-weight: 700;">4</td>
+                                <td style="color: var(--teal); font-weight: 700;">1.08 s</td>
+                                <td style="color: var(--teal); font-weight: 700;">3.16x</td>
+                                <td style="color: var(--teal); font-weight: 700;">79.0%</td>
+                            </tr>
+                            <tr>
+                                <td>Parallel</td>
+                                <td>8</td>
+                                <td>0.69 s</td>
+                                <td>4.95x</td>
+                                <td>61.9%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">The Overhead Crossover Phenomenon</div>
+                    <ul>
+                        <li><strong>Small Workloads (<20 tasks):</strong> S_p < 1.0 due to process initialization and IPC serialization overhead.</li>
+                        <li><strong>Medium/Large Workloads (50+ tasks):</strong> Compute time dominates overhead; parallel execution delivers major acceleration.</li>
+                        <li><strong>4-Worker Sweet Spot:</strong> Delivers 3.16x speedup with 79% parallel efficiency.</li>
+                        <li><strong>8-Worker Scalability:</strong> Delivers 4.95x speedup; efficiency declines to 62% due to OS thread contention.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9 -->
+        <div class="slide" id="slide-9" data-notes="Strategy evaluation cannot rely on return alone. Our engine calculates institutional risk metrics: annualized Sharpe ratio with risk-free rate adjustment, maximum peak-to-trough drawdown, profit factor, and total transaction friction. Strategies are ranked interactively to identify robust risk-adjusted models.">
+            <div class="category">Financial Analytics</div>
+            <div class="title">Risk-Adjusted Performance & Strategy Ranking</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Institutional Financial Metrics</div>
+                    <ul>
+                        <li><strong>Total Return (%):</strong> Final portfolio equity relative to initial capital.</li>
+                        <li><strong>Annualized Return (%):</strong> Compounded annual growth rate (252-day basis).</li>
+                        <li><strong>Max Peak-to-Trough Drawdown (%):</strong> Largest peak-to-trough equity drop.</li>
+                        <li><strong>Annualized Sharpe Ratio:</strong> Excess return over volatility: (μ - r_f) / σ × √252.</li>
+                        <li><strong>Win Rate (%):</strong> Percentage of completed round-trip trades with positive PnL.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Trade Accounting & Ranking Logic</div>
+                    <ul>
+                        <li><strong>Profit Factor:</strong> Gross winning trade profits / Gross losing trade losses.</li>
+                        <li><strong>Average Holding Period:</strong> Mean duration (in bars) per trade.</li>
+                        <li><strong>Transaction Cost Ledger:</strong> Cumulative commissions and slippage.</li>
+                        <li><strong>Multi-Criteria Sorting:</strong> Rank by Sharpe, Return, Drawdown, or Win Rate.</li>
+                        <li><strong>Custom Weighted Score:</strong> 0.4(Sharpe) + 0.3(Return) - 0.3(Drawdown).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 10 -->
+        <div class="slide" id="slide-10" data-notes="Here is the interactive Streamlit user interface. It spans six cohesive pages with a dark navy quantitative aesthetic. Users can visually explore OHLC candles, tune parameter ranges, execute benchmarks, inspect equity curves, and export compliance audit reports in CSV and Markdown.">
+            <div class="category">User Experience</div>
+            <div class="title">Interactive Streamlit Quantitative Dashboard</div>
+            <div class="grid-6">
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 1: Overview</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">System health metrics, dataset status, CPU core detector, and benchmark overview.</div>
+                </div>
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 2: Data Explorer</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">CSV uploader, 7-point validation report, and Plotly candlestick/volume charts.</div>
+                </div>
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 3: Strategy Config</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">Parameter grid tuning, cost friction controls, and worker process slider.</div>
+                </div>
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 4: Backtest Results</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">Interactive ranking table, equity curves, drawdown underwater plots, and trade logs.</div>
+                </div>
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 5: Parallel Lab</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">Live sequential vs. parallel benchmarking, worker sweeps, and speedup charts.</div>
+                </div>
+                <div class="card" style="padding: 12px 16px;">
+                    <div style="color: var(--cyan); font-weight: 700;">Page 6: Reports & Exports</div>
+                    <div style="color: var(--text-muted); font-size: 12px;">One-click downloads of Backtest CSV, Trades CSV, Benchmark CSV, and Markdown audit.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 11 -->
+        <div class="slide" id="slide-11" data-notes="A critical academic requirement is proving that parallelization does not compromise numerical correctness. Our test suite of 72 unit and integration tests verifies that sequential and parallel execution produce identical financial metrics down to 10^-6 precision. Every test passes cleanly in under 2.5 seconds.">
+            <div class="category">Quality Assurance</div>
+            <div class="title">72 Automated Tests & Numerical Consistency Proof</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Automated Test Coverage (100% Pass)</div>
+                    <ul>
+                        <li><strong>test_data_validation.py (16 tests):</strong> Normalization, duplicate removal, positive price rules, and geometry validation.</li>
+                        <li><strong>test_strategies.py (22 tests):</strong> MA crossovers, RSI Wilder smoothing, and shifted Donchian channel calculations.</li>
+                        <li><strong>test_backtesting.py (18 tests):</strong> Portfolio ledger, next-bar open fill timing, commission haircuts, and equity curves.</li>
+                        <li><strong>test_parallel_consistency.py (10 tests):</strong> Sequential vs. parallel result equivalence and worker error isolation.</li>
+                        <li><strong>test_metrics.py (6 tests):</strong> Sharpe edge cases, zero-volatility guards, max drawdown, and profit factors.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Sequential-Parallel Consistency Proof</div>
+                    <ul>
+                        <li><strong>Identical Inputs:</strong> Both runners take identical task descriptors and OHLC matrices.</li>
+                        <li><strong>Tolerance Guarantee:</strong> |Metric_seq - Metric_par| < 10^-6 across all calculated metrics.</li>
+                        <li><strong>Bit-Level Trade Matching:</strong> Entry dates, fill prices, exit prices, and PnL match exactly.</li>
+                        <li><strong>Fault Resilience:</strong> Erroneous tasks return error descriptors without crashing the worker pool.</li>
+                        <li><strong>Fast Execution:</strong> Entire 72-test suite runs in under 2.5 seconds on pytest.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 12 -->
+        <div class="slide" id="slide-12" data-notes="In academic engineering, it is vital to acknowledge modeling boundaries. We make clear that order book liquidity, dynamic spread widening, and borrow fees are abstracted. Future extensions include distributed cluster computing via Ray or Dask, GPU matrix acceleration, and walk-forward cross-validation.">
+            <div class="category">Critical Evaluation</div>
+            <div class="title">System Limitations & Strategic Roadmap</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Academic Modeling Assumptions</div>
+                    <ul>
+                        <li><strong>Full Liquidity Assumption:</strong> Assumes 100% order fill probability at next bar's Open price.</li>
+                        <li><strong>Linear Cost Model:</strong> Fixed commission and slippage abstract away dynamic order book spread widening.</li>
+                        <li><strong>Long-Only Constraints:</strong> Short-selling borrow fees and margin requirements are omitted.</li>
+                        <li><strong>Overfitting Caution:</strong> Top-ranked backtest parameters risk curve-fitting historical noise (p-hacking).</li>
+                        <li><strong>Academic Scope:</strong> Designed for educational study, not live broker execution.</li>
+                    </ul>
+                </div>
+                <div class="card featured">
+                    <div class="card-title">Strategic Future Enhancements</div>
+                    <ul>
+                        <li><strong>Distributed Multi-Node Clusters:</strong> Integrating Ray or Dask to distribute tasks across server clusters.</li>
+                        <li><strong>GPU Acceleration:</strong> Offloading rolling matrix operations to CUDA / CuPy.</li>
+                        <li><strong>Walk-Forward Analysis (WFA):</strong> Rolling train-test out-of-sample optimization to mitigate data snooping.</li>
+                        <li><strong>Tick-Level L2 Replay:</strong> Simulating sub-second limit order book queues and partial fills.</li>
+                        <li><strong>Reinforcement Learning:</strong> Backtesting RL agents with multi-process experience replay.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 13 -->
+        <div class="slide" id="slide-13" data-notes="In conclusion, the Parallel Financial Strategy Backtesting Engine successfully demonstrates how multi-process task parallelism transforms quantitative backtesting performance. The system achieves measurable speedup, rigorous financial modeling, and complete test verification. Thank you, and I now welcome your questions.">
+            <div class="category">Conclusion</div>
+            <div class="title">Project Summary & Defense Readiness</div>
+            <div class="grid-3">
+                <div class="card featured">
+                    <div class="card-title">Parallel Computing</div>
+                    <ul>
+                        <li>Overcame CPython GIL bottleneck via ProcessPoolExecutor.</li>
+                        <li>Achieved up to 4.95x empirical speedup on multi-core CPU.</li>
+                        <li>Empirically validated Amdahl's Law and overhead crossover.</li>
+                        <li>100% Windows & Linux cross-platform stability.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">Quantitative Rigor</div>
+                    <ul>
+                        <li>Zero look-ahead bias execution on next candle open.</li>
+                        <li>Realistic commission and slippage transaction costs.</li>
+                        <li>Institutional risk analytics (Sharpe, Drawdown, Profit Factor).</li>
+                        <li>7-point automated data quality validation suite.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title">Deliverables</div>
+                    <ul>
+                        <li>Interactive Streamlit dashboard with 6 functional pages.</li>
+                        <li>72 automated pytest tests (100% passing).</li>
+                        <li>Complete academic report, architecture doc, and viva Q&A.</li>
+                        <li>Production-ready for laboratory evaluation and defense.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Speaker Notes Drawer -->
+        <div class="notes-drawer" id="notes-drawer">
+            <strong>SPEAKER NOTES:</strong>
+            <p id="notes-text"></p>
+        </div>
+
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div>Slide <span id="current-slide">1</span> of <span id="total-slides">13</span></div>
+        <div class="btn-group">
+            <button onclick="prevSlide()">❮ Prev</button>
+            <button onclick="nextSlide()">Next ❯</button>
+            <button onclick="toggleNotes()">Toggle Notes (N)</button>
+            <button onclick="toggleFullscreen()">Fullscreen (F)</button>
+        </div>
+        <div>Press <strong>← / →</strong> or <strong>Space</strong> to navigate</div>
+    </div>
+
+    <script>
+        let current = 1;
+        const total = 13;
+        const slides = document.querySelectorAll('.slide');
+        const notesDrawer = document.getElementById('notes-drawer');
+        const notesText = document.getElementById('notes-text');
+        const currentSlideEl = document.getElementById('current-slide');
+
+        function updateSlide() {
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === current - 1);
+            });
+            currentSlideEl.innerText = current;
+            const activeSlide = document.getElementById(`slide-1`);
+            const notes = document.getElementById(`slide-${current}`).getAttribute('data-notes') || 'No speaker notes for this slide.';
+            notesText.innerText = notes;
+        }
+
+        function nextSlide() {
+            if (current < total) {
+                current++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (current > 1) {
+                current--;
+                updateSlide();
+            }
+        }
+
+        function toggleNotes() {
+            notesDrawer.classList.toggle('open');
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                prevSlide();
+            } else if (e.key.toLowerCase() === 'n') {
+                toggleNotes();
+            } else if (e.key.toLowerCase() === 'f') {
+                toggleFullscreen();
+            }
+        });
+
+        // Initialize notes
+        updateSlide();
+    </script>
+</body>
+</html>
